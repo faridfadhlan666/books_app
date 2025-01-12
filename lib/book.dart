@@ -1,39 +1,36 @@
 class Book {
-  // Note properties
-  String id;
+  final int? id;
   String title;
   String author;
   DateTime publishedDate;
   bool isAvailable;
 
-  // Constructor with named parameters
   Book({
-    required this.id,
+    this.id,
     required this.title,
     required this.author,
     required this.publishedDate,
     required this.isAvailable,
   });
 
-  // Factory constructor to create a Book object from JSON
+  // Convert JSON to Book object
   factory Book.fromJson(Map<String, dynamic> json) {
     return Book(
-      id: json['id'] as String,
+      id: json['id'] as int,
       title: json['title'] as String,
       author: json['author'] as String,
-      publishedDate: DateTime.parse(json['publishedDate'] as String),
-      isAvailable: json['isAvailable'] as bool,
+      publishedDate: DateTime.parse(json['published_date'] as String),
+      isAvailable: json['is_available'] ?? false,
     );
   }
 
-  // Method to convert to JSON
+  // Convert Book object to JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'title': title,
-      'author': author, 
-      'publishedDate': publishedDate.toIso8601String(),
-      'isAvailable': isAvailable,
+      'author': author,
+      'published_date': publishedDate.toIso8601String(),
+      'is_available': isAvailable,
     };
   }
 }

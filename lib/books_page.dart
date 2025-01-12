@@ -1,6 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:books_app/book.dart';
 import 'package:books_app/book_database.dart';
-import 'package:flutter/material.dart';
 
 class BooksPage extends StatefulWidget {
   const BooksPage({super.key});
@@ -10,16 +10,44 @@ class BooksPage extends StatefulWidget {
 }
 
 class _BooksPageState extends State<BooksPage> {
-  final textController = TextEditingController();
+  final textTitleController = TextEditingController();
+  final textAuthorController = TextEditingController();
+  final textDateController = TextEditingController();
+  final textAvailableController = TextEditingController();
   final _bookDatabase = BookDatabase();
-  final _titleController = TextEditingController();
-  final _authorController = TextEditingController();
 
+  String searchQuery = "";
+  bool isFilteredByAvailable = false;
+  bool isAvailableNewBook = false;
+  bool isAvailableEditBook = false;
+  bool isFilteredbyAuthor = false;
+
+  // Build halamam UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Books'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value; // Update query pencarian
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search books...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       body: StreamBuilder(
         stream: _bookDatabase.getBooksStream(),
@@ -32,24 +60,29 @@ class _BooksPageState extends State<BooksPage> {
           // loaded
           final books = snapshot.data!;
 
-          // List of books
+          // Filter buku berdasarkan query pencarian
+          final searchedBooks = books
+              .where((book) =>
+                  book.title.toLowerCase().contains(searchQuery.toLowerCase()))
+              .toList();
+
           return ListView.builder(
-            itemCount: books.length,
-            // Use ListTile widget to show books data
+            itemCount: searchedBooks.length,
             itemBuilder: (context, index) => ListTile(
-              title: Text(books[index].title),
+              title: Text(searchedBooks[index].title),
+              subtitle: Text(searchedBooks[index].author),
               trailing: SizedBox(
                 width: 100,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      onPressed: () => editBook(books[index]),
-                      icon: const Icon(Icons.edit),
+                      onPressed: () => editBook(searchedBooks[index]),
+                      icon: const Icon(Icons.edit, color: Colors.green),
                     ),
                     IconButton(
-                      onPressed: () => deleteBook(books[index].id),
-                      icon: const Icon(Icons.delete),
+                      onPressed: () => deleteBook(searchedBooks[index]),
+                      icon: const Icon(Icons.delete, color: Colors.red),
                     ),
                   ],
                 ),
@@ -59,84 +92,121 @@ class _BooksPageState extends State<BooksPage> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: addNewBook,
+        onPressed: _addNewBook,
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  void addNewBook() {
+  void _addNewBook() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add new book'),
-        content: TextField(
-          controller: textController,
+        title: const Text('Add New Book'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: textTitleController,
+              decoration: const InputDecoration(hintText: 'Title'),
+            ),
+            TextField(
+              controller: textAuthorController,
+              decoration: const InputDecoration(hintText: 'Author'),
+            ),
+            TextField(
+              controller: textDateController,
+              decoration: const InputDecoration(hintText: 'Published Date (yyyy-mm-dd)'),
+            ),
+            Row(
+              children: [
+                const Text('Mark as Available:'),
+                Checkbox(
+                  value: isAvailableNewBook,
+                  onChanged: (value) {
+                    setState(() {
+                      isAvailableNewBook = value ?? false;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
+
         actions: [
           TextButton(
             onPressed: () {
-              // Create a new book
               final book = Book(
-                id: '',
-                title: _titleController.text,
-                author: _authorController.text,
-                publishedDate: DateTime.now(),
-                isAvailable: true,
+                title: textTitleController.text,
+                author: textAuthorController.text,
+                publishedDate: DateTime.parse(textDateController.text),
+                isAvailable: isAvailableNewBook,
               );
 
-              // Save the book to the database
               _bookDatabase.insertBook(book);
-
-              // Close the dialog
               Navigator.pop(context);
-              textController.clear();
+              textTitleController.clear();
+              setState(() {
+                isAvailableNewBook = false;
+              });
             },
             child: const Text('Save'),
-          ),
+          )
         ],
       ),
     );
   }
 
+  // Edit buku
   void editBook(Book book) {
-    // Set the text controllers to the book's title and author
-    _titleController.text = book.title;
-    _authorController.text = book.author;
+    textTitleController.text = book.title;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit book'),
+        title: const Text('Edit Book'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Title'),
+              controller: textTitleController,
+              decoration: const InputDecoration(
+                hintText: 'Enter Book Title',
+              ),
             ),
-            TextField(
-              controller: _authorController,
-              decoration: const InputDecoration(labelText: 'Author'),
+            Row(
+              children: [
+                const Text('Mark as Available:'),
+                Checkbox(
+                  value: isAvailableEditBook,
+                  onChanged: (value) {
+                    setState(() {
+                      isAvailableEditBook = value ?? false;
+                    });
+                  },
+                ),
+              ],
             ),
           ],
         ),
+
         actions: [
           TextButton(
             onPressed: () {
-              // Update the book
-              book.title = _titleController.text;
-              book.author = _authorController.text;
-              _bookDatabase.updateBook(book);
+              book.title = textTitleController.text;
+              book.isAvailable = isAvailableEditBook; // Update judul buku
+              _bookDatabase.updateBookAvailability(book.id!, book.isAvailable); // Update buku di database
 
-              // Close the dialog
               Navigator.pop(context);
+              textTitleController.clear();
             },
             child: const Text('Save'),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
+              textTitleController.clear();
             },
             child: const Text('Cancel'),
           ),
@@ -145,18 +215,38 @@ class _BooksPageState extends State<BooksPage> {
     );
   }
 
-  // Delete a book
-  void deleteBook(String id) {
+  // Hapus Buku
+  void deleteBook(Book book) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete book'),
+        title: const Text('Delete Book'),
+        content: const Text('Are you sure you want to delete this book?'),
         actions: [
           TextButton(
             onPressed: () {
-              // Delete book data based on id
-              _bookDatabase.deleteBook(id);
               Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Final Confirmation'),
+                  content: Text(
+                      'This action cannot be undone.\n\n"${book.title}"'),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        _bookDatabase.deleteBook(book.id!);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Yes, Delete'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ),
+              );
             },
             child: const Text('Yes'),
           ),
